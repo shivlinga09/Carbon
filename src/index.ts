@@ -33,7 +33,7 @@ app.post('/students', async (c) => {
 
     const student = await prisma.student.create({
       data: {
-        id: body.id, // ID taken from user input
+        id: body.id, 
         name: body.name,
         dateOfBirth: new Date(body.dateOfBirth),
         aadharNumber: body.aadharNumber,
@@ -56,7 +56,7 @@ app.post('/professors', async (c) => {
 
     const professor = await prisma.professor.create({
       data: {
-        id: body.id, // ID taken from user input
+        id: body.id, 
         name: body.name,
         seniority: body.seniority,
         aadharNumber: body.aadharNumber,
@@ -123,11 +123,37 @@ app.get('/students/:studentId/library-membership', async (c) => {
 
 // 13. POST create library membership
 app.post('/students/:studentId/library-membership', async (c) => {
-  const studentId = parseInt(c.req.param('studentId'))
-  const body = await c.req.json()
-  const membership = await prisma.libraryMembership.create({ data: { studentId, ...body } })
-  return c.json(membership, 201)
+  try {
+    const studentId = parseInt(c.req.param('studentId'))
+    const body = await c.req.json()
+
+    if (!body.issueDate || !body.expiryDate) {
+      return c.json({ error: 'Missing required fields' }, 400)
+    }
+
+    const existingMembership = await prisma.libraryMembership.findUnique({
+      where: { studentId: studentId.toString() },
+    })
+
+    if (existingMembership) {
+      return c.json({ error: 'Library membership already exists for this student' }, 400)
+    }
+
+    const membership = await prisma.libraryMembership.create({
+      data: {
+        studentId: studentId.toString(),
+        issueDate: new Date(body.issueDate),
+        expiryDate: new Date(body.expiryDate),
+      },
+    })
+
+    return c.json(membership, 201)
+  } catch (error) {
+    console.error('Error creating library membership:', error)
+    return c.json({ error: 'Internal Server Error' }, 500)
+  }
 })
+
 
 // 14. PATCH update library membership
 app.patch('/students/:studentId/library-membership', async (c) => {
